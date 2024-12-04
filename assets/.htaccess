@@ -1,0 +1,14 @@
+# Permitir acesso a arquivos estáticos
+<IfModule mod_rewrite.c>
+    RewriteEngine Off
+</IfModule>
+
+# Habilitar CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+</IfModule>
+
+# Cache control
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico)$">
+    Header set Cache-Control "max-age=31536000, public"
+</FilesMatch>

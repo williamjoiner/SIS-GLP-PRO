@@ -1,0 +1,26 @@
+<?php
+class Database {
+    private $host = "localhost";
+    private $database_name = "wpglppro_sisglppro";
+    private $username = "wpglppro_sisglppro";
+    private $password = "s}Zv[chZIMn&";
+    public $conn;
+
+    public function getConnection() {
+        $this->conn = null;
+        try {
+            $this->conn = new PDO(
+                "mysql:host=" . $this->host . ";dbname=" . $this->database_name,
+                $this->username,
+                $this->password
+            );
+            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $this->conn->exec("set names utf8");
+            return $this->conn;
+        } catch(PDOException $exception) {
+            echo "Database connection error: " . $exception->getMessage();
+            return null;
+        }
+    }
+}
+?>
