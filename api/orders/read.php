@@ -35,7 +35,8 @@ try {
     }
     
     // Buscar produtos da venda
-    $query = "SELECT op.*, p.name, p.price 
+    $query = "SELECT op.product_id, op.quantity, op.price as unit_price,
+                     p.name as product_name, p.price as current_price 
               FROM order_products op 
               JOIN products p ON op.product_id = p.id 
               WHERE op.order_id = :order_id";

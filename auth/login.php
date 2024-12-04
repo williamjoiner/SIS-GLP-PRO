@@ -28,12 +28,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION['user_id'] = $row['id'];
                 $_SESSION['username'] = $row['username'];
                 $_SESSION['role'] = $row['role'];
+                $_SESSION['logged_in'] = true;
                 
                 // Adicionando log para debug
                 error_log("Login bem-sucedido para: " . $username);
                 
                 // Redirecionamento direto para o dashboard
-                header("Location: ../dashboard.php");
+                header("Location: ../modules/orders/index.php");
                 exit();
             } else {
                 // Adicionando log para debug
