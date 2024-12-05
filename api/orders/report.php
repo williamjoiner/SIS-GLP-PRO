@@ -23,7 +23,7 @@ try {
     $query = "SELECT 
                 DATE(o.created_at) as date,
                 COUNT(*) as total_orders,
-                SUM(o.total) as total_amount,
+                SUM(o.total_amount) as total_amount,
                 COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as delivered_orders,
                 COUNT(CASE WHEN o.status = 'cancelled' THEN 1 END) as cancelled_orders
               FROM orders o
@@ -54,8 +54,8 @@ try {
     // Get summary stats
     $query = "SELECT 
                 COUNT(*) as total_orders,
-                SUM(total) as total_amount,
-                AVG(total) as average_order_value,
+                SUM(total_amount) as total_amount,
+                AVG(total_amount) as average_order_value,
                 COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_orders,
                 COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_orders
               FROM orders
@@ -76,11 +76,11 @@ try {
     // Get top products
     $query = "SELECT 
                 p.name,
-                SUM(op.quantity) as total_quantity,
-                SUM(op.quantity * p.price) as total_amount
-              FROM order_products op
-              JOIN products p ON op.product_id = p.id
-              JOIN orders o ON op.order_id = o.id
+                SUM(oi.quantity) as total_quantity,
+                SUM(oi.quantity * oi.price) as total_amount
+              FROM order_items oi
+              JOIN products p ON oi.product_id = p.id
+              JOIN orders o ON oi.order_id = o.id
               WHERE DATE(o.created_at) BETWEEN :start_date AND :end_date";
     
     if ($status) {
@@ -91,7 +91,7 @@ try {
         $query .= " AND o.deliverer_id = :deliverer_id";
     }
     
-    $query .= " GROUP BY p.id
+    $query .= " GROUP BY p.id, p.name
                 ORDER BY total_quantity DESC
                 LIMIT 5";
     
@@ -108,7 +108,8 @@ try {
         ]
     ]);
     
-} catch(PDOException $e) {
+} catch (Exception $e) {
+    http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => 'Erro ao gerar relatório: ' . $e->getMessage()

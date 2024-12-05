@@ -1,56 +1,49 @@
 <?php
-require_once __DIR__ . '/../../auth/check_auth.php';
+session_start();
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../helpers/auth_check.php';
 
 header('Content-Type: application/json');
 
-// Verificar se é uma requisição POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Método não permitido']);
-    exit;
-}
-
-// Obter dados do POST
-$data = json_decode(file_get_contents('php://input'), true);
-
-if (!isset($data['id'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'ID da venda não informado']);
-    exit;
-}
-
 try {
+    if (!isset($_POST['id']) || !is_numeric($_POST['id'])) {
+        throw new Exception('ID da venda não fornecido ou inválido');
+    }
+
     $database = new Database();
     $db = $database->getConnection();
-    
+
     // Iniciar transação
     $db->beginTransaction();
-    
-    // Excluir os itens da venda
-    $query = "DELETE FROM order_items WHERE order_id = :order_id";
+
+    // Primeiro excluir os itens da venda
+    $query = "DELETE FROM order_items WHERE order_id = :id";
     $stmt = $db->prepare($query);
-    $stmt->execute([':order_id' => $data['id']]);
-    
-    // Excluir a venda
+    $stmt->bindValue(':id', $_POST['id'], PDO::PARAM_INT);
+    $stmt->execute();
+
+    // Depois excluir a venda
     $query = "DELETE FROM orders WHERE id = :id";
     $stmt = $db->prepare($query);
-    $stmt->execute([':id' => $data['id']]);
-    
-    // Commit da transação
+    $stmt->bindValue(':id', $_POST['id'], PDO::PARAM_INT);
+    $stmt->execute();
+
+    if ($stmt->rowCount() === 0) {
+        throw new Exception('Venda não encontrada');
+    }
+
+    // Confirmar transação
     $db->commit();
-    
+
     echo json_encode([
         'success' => true,
         'message' => 'Venda excluída com sucesso'
     ]);
-    
-} catch (Exception $e) {
-    // Rollback em caso de erro
+
+} catch(Exception $e) {
     if (isset($db)) {
         $db->rollBack();
     }
-    
     error_log("Erro ao excluir venda: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([

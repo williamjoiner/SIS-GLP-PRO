@@ -3,26 +3,29 @@ header('Content-Type: application/json');
 require_once '../../config/database.php';
 
 try {
-    $term = isset($_GET['term']) ? $_GET['term'] : '';
+    $search = isset($_GET['search']) ? $_GET['search'] : '';
     
-    $sql = "SELECT c.*, 
-            GROUP_CONCAT(DISTINCT cc.phone) as phones,
-            GROUP_CONCAT(DISTINCT ca.address) as addresses
-            FROM clients c
-            LEFT JOIN client_contacts cc ON c.id = cc.client_id
-            LEFT JOIN client_addresses ca ON c.id = ca.client_id
-            WHERE c.name LIKE :term 
-            OR cc.phone LIKE :term 
-            OR ca.address LIKE :term
-            GROUP BY c.id
+    $sql = "SELECT id, name, email, phone 
+            FROM clients 
+            WHERE name LIKE :search 
+            OR email LIKE :search 
+            OR phone LIKE :search 
+            ORDER BY name 
             LIMIT 10";
     
     $stmt = $pdo->prepare($sql);
-    $stmt->execute(['term' => '%' . $term . '%']);
+    $stmt->execute(['search' => '%' . $search . '%']);
     $clients = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    echo json_encode(['success' => true, 'data' => $clients]);
+    $results = array_map(function($client) {
+        return [
+            'id' => $client['id'],
+            'text' => $client['name'] . ' - ' . $client['phone']
+        ];
+    }, $clients);
+    
+    echo json_encode($results);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Erro ao buscar clientes: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Erro ao buscar clientes: ' . $e->getMessage()]);
 }

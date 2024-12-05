@@ -1,226 +1,254 @@
 <?php
-session_start();
-require_once '../../config/database.php';
-require_once '../../helpers/auth_check.php';
-
-$currentPage = 'orders';
+$page_title = "Vendas";
+require_once __DIR__ . '/../../includes/header.php';
+require_once __DIR__ . '/../../config/database.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vendas - Sistema de Vendas</title>
-    
-    <!-- CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/1.13.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="/assets/style.css" rel="stylesheet">
-</head>
-<body>
-
-<div class="wrapper">
-    <?php include '../../components/sidebar.php'; ?>
-    
-    <div class="main-content">
-        <div class="container-fluid">
-            <!-- Header -->
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0">Gerenciar Vendas</h1>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addOrderModal">
-                    <i class='bx bx-plus-circle me-2'></i>Nova Venda
+                <h1 class="h3 mb-0 text-gray-800"><?php echo $page_title; ?></h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#saleModal" aria-label="Nova Venda">
+                    <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Nova Venda
                 </button>
             </div>
-            
-            <!-- Filtros -->
-            <div class="card mb-4 fade-in">
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row mb-4" role="region" aria-label="Resumo de Vendas">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary h-100 py-2">
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" id="filterStatus">
-                                <option value="">Todos</option>
-                                <option value="pending">Pendente</option>
-                                <option value="processing">Em Processamento</option>
-                                <option value="completed">Concluído</option>
-                                <option value="cancelled">Cancelado</option>
-                            </select>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Vendas (Hoje)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="today_sales">0</div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Data Inicial</label>
-                            <input type="date" class="form-control" id="filterStartDate">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Data Final</label>
-                            <input type="date" class="form-control" id="filterEndDate">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Cliente</label>
-                            <select class="form-select select2" id="filterCustomer">
-                                <option value="">Todos</option>
-                            </select>
+                        <div class="col-auto">
+                            <i class="bi bi-cart3 fa-2x text-gray-300" aria-hidden="true"></i>
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- Tabela de Vendas -->
-            <div class="card fade-in">
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success h-100 py-2">
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="ordersTable">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Cliente</th>
-                                    <th>Data</th>
-                                    <th>Total</th>
-                                    <th>Status</th>
-                                    <th>Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Dados serão carregados via AJAX -->
-                            </tbody>
-                        </table>
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Faturamento (Hoje)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="today_revenue">R$ 0,00</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-currency-dollar fa-2x text-gray-300" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Vendas (Mês)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="month_sales">0</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-graph-up fa-2x text-gray-300" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Faturamento (Mês)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="month_revenue">R$ 0,00</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-cash-stack fa-2x text-gray-300" aria-hidden="true"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <button class="btn btn-link text-decoration-none p-0" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="true" aria-controls="filterCollapse">
+                <i class="bi bi-funnel me-1" aria-hidden="true"></i>
+                Filtros
+            </button>
+        </div>
+        <div class="collapse show" id="filterCollapse" role="region" aria-label="Filtros de Vendas">
+            <div class="card-body">
+                <form id="filterForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label" for="status_filter">Status</label>
+                        <select class="form-select" id="status_filter">
+                            <option value="">Todos</option>
+                            <option value="pending">Pendente</option>
+                            <option value="paid">Pago</option>
+                            <option value="cancelled">Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="start_date">Data Inicial</label>
+                        <input type="date" class="form-control" id="start_date">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="end_date">Data Final</label>
+                        <input type="date" class="form-control" id="end_date">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="customer_filter">Cliente</label>
+                        <select class="form-select" id="customer_filter"></select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-search me-1" aria-hidden="true"></i>Filtrar
+                        </button>
+                        <button type="reset" class="btn btn-secondary">
+                            <i class="bi bi-x-circle me-1" aria-hidden="true"></i>Limpar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Vendas -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped" id="salesTable">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Cliente</th>
+                            <th scope="col">Data</th>
+                            <th scope="col" class="text-end">Subtotal</th>
+                            <th scope="col" class="text-end">Desconto</th>
+                            <th scope="col" class="text-end">Total</th>
+                            <th scope="col">Pagamento</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Modal Adicionar Venda -->
-<div class="modal fade" id="addOrderModal" tabindex="-1">
+<!-- Modal de Nova Venda -->
+<div class="modal fade" id="saleModal" tabindex="-1" aria-labelledby="saleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Nova Venda</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="saleModalLabel">Nova Venda</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <form id="addOrderForm">
-                    <div class="row g-3">
+                <form id="saleForm">
+                    <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Cliente</label>
-                            <select class="form-select select2" name="customer_id" required>
-                                <option value="">Selecione um cliente</option>
+                            <label class="form-label" for="client_id">Cliente</label>
+                            <select class="form-select" id="client_id" required></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="payment_method">Método de Pagamento</label>
+                            <select class="form-select" id="payment_method" required>
+                                <option value="">Selecione</option>
+                                <option value="money">Dinheiro</option>
+                                <option value="credit">Cartão de Crédito</option>
+                                <option value="debit">Cartão de Débito</option>
+                                <option value="pix">PIX</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Data</label>
-                            <input type="date" class="form-control" name="order_date" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">Produtos</label>
+                            <button type="button" class="btn btn-success btn-sm" id="addProduct" aria-label="Adicionar Produto">
+                                <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Adicionar Produto
+                            </button>
                         </div>
+                        <div id="productsList" role="region" aria-label="Lista de Produtos"></div>
                     </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div class="products-container">
-                        <div class="row g-3 product-row mb-3">
-                            <div class="col-md-5">
-                                <label class="form-label">Produto</label>
-                                <select class="form-select select2-products" name="products[]" required>
-                                    <option value="">Selecione um produto</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Quantidade</label>
-                                <input type="number" class="form-control" name="quantities[]" min="1" required>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Preço Unit.</label>
-                                <input type="number" class="form-control" name="prices[]" step="0.01" required>
-                            </div>
-                            <div class="col-md-1">
-                                <label class="form-label d-block">&nbsp;</label>
-                                <button type="button" class="btn btn-outline-danger remove-product">
-                                    <i class='bx bx-trash'></i>
-                                </button>
-                            </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label" for="subtotal">Subtotal</label>
+                            <input type="text" class="form-control currency" id="subtotal" readonly>
                         </div>
-                    </div>
-                    
-                    <div class="text-center mt-3">
-                        <button type="button" class="btn btn-outline-primary" id="addProduct">
-                            <i class='bx bx-plus-circle me-2'></i>Adicionar Produto
-                        </button>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div class="row g-3">
-                        <div class="col-md-12">
-                            <label class="form-label">Observações</label>
-                            <textarea class="form-control" name="notes" rows="3"></textarea>
+                        <div class="col-md-4">
+                            <label class="form-label" for="discount">Desconto</label>
+                            <input type="text" class="form-control currency" id="discount" value="0,00">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="total">Total</label>
+                            <input type="text" class="form-control currency" id="total" readonly>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="saveOrder">
-                    <i class='bx bx-save me-2'></i>Salvar Venda
-                </button>
+                <button type="button" class="btn btn-primary" id="saveSale">Salvar</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal Visualizar Venda -->
-<div class="modal fade" id="viewOrderModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- Modal de Visualização de Venda -->
+<div class="modal fade" id="viewSaleModal" tabindex="-1" aria-labelledby="viewSaleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Detalhes da Venda</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="viewSaleModalLabel">Detalhes da Venda #<span id="viewSaleId"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <tr>
-                            <th width="30%">ID:</th>
-                            <td id="view-id"></td>
-                        </tr>
-                        <tr>
-                            <th>Cliente:</th>
-                            <td id="view-customer"></td>
-                        </tr>
-                        <tr>
-                            <th>Data:</th>
-                            <td id="view-date"></td>
-                        </tr>
-                        <tr>
-                            <th>Status:</th>
-                            <td id="view-status"></td>
-                        </tr>
-                        <tr>
-                            <th>Total:</th>
-                            <td id="view-total"></td>
-                        </tr>
-                    </table>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Cliente:</strong> <span id="viewClientName"></span></p>
+                        <p><strong>Data:</strong> <span id="viewDate"></span></p>
+                        <p><strong>Status:</strong> <span id="viewStatus"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Método de Pagamento:</strong> <span id="viewPaymentMethod"></span></p>
+                        <p><strong>Subtotal:</strong> <span id="viewSubtotal"></span></p>
+                        <p><strong>Desconto:</strong> <span id="viewDiscount"></span></p>
+                        <p><strong>Total:</strong> <span id="viewTotal"></span></p>
+                    </div>
                 </div>
-                
-                <h6 class="mt-4 mb-3">Produtos</h6>
+
                 <div class="table-responsive">
-                    <table class="table table-sm" id="view-products">
+                    <table class="table">
                         <thead>
                             <tr>
-                                <th>Produto</th>
-                                <th>Qtd</th>
-                                <th>Preço</th>
-                                <th>Subtotal</th>
+                                <th scope="col">Produto</th>
+                                <th scope="col" class="text-end">Quantidade</th>
+                                <th scope="col" class="text-end">Preço</th>
+                                <th scope="col" class="text-end">Total</th>
                             </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody id="viewProducts"></tbody>
                     </table>
                 </div>
-                
-                <h6 class="mt-4 mb-2">Observações</h6>
-                <div id="view-notes" class="p-3 bg-light rounded"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -229,74 +257,4 @@ $currentPage = 'orders';
     </div>
 </div>
 
-<!-- Modal Editar Venda -->
-<div class="modal fade" id="editOrderModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Editar Venda</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="editOrderForm">
-                    <input type="hidden" name="order_id" id="edit-order-id">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Cliente</label>
-                            <select class="form-select select2" name="customer_id" id="edit-customer" required>
-                                <option value="">Selecione um cliente</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Status</label>
-                            <select class="form-select" name="status" id="edit-status" required>
-                                <option value="pending">Pendente</option>
-                                <option value="processing">Em Processamento</option>
-                                <option value="completed">Concluído</option>
-                                <option value="cancelled">Cancelado</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div class="edit-products-container">
-                        <!-- Produtos serão carregados aqui -->
-                    </div>
-                    
-                    <div class="text-center mt-3">
-                        <button type="button" class="btn btn-outline-primary" id="addEditProduct">
-                            <i class='bx bx-plus-circle me-2'></i>Adicionar Produto
-                        </button>
-                    </div>
-                    
-                    <hr class="my-4">
-                    
-                    <div class="row g-3">
-                        <div class="col-md-12">
-                            <label class="form-label">Observações</label>
-                            <textarea class="form-control" name="notes" id="edit-notes" rows="3"></textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="updateOrder">
-                    <i class='bx bx-save me-2'></i>Atualizar Venda
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Scripts -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.5/js/dataTables.bootstrap5.min.js"></script>
-<script src="/assets/js/orders.js"></script>
-
-</body>
-</html>
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>

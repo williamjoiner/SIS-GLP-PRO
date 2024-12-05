@@ -1,103 +1,51 @@
-let ordersTable;
-
 $(document).ready(function() {
-    // Inicializar Select2 com busca avançada para clientes
-    $('select[name="customer_id"]').select2({
-        width: '100%',
+    // Inicializar Select2
+    $('.select2').select2({
         language: 'pt-BR',
-        ajax: {
-            url: '/api/clients/search.php',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return {
-                    term: params.term
-                };
-            },
-            processResults: function(data) {
-                return {
-                    results: data.data.map(function(client) {
-                        let text = client.name;
-                        if (client.phones) {
-                            text += ' - Tel: ' + client.phones.split(',')[0];
-                        }
-                        if (client.addresses) {
-                            text += ' - End: ' + client.addresses.split(',')[0];
-                        }
-                        return {
-                            id: client.id,
-                            text: text
-                        };
-                    })
-                };
-            },
-            cache: true
-        },
-        minimumInputLength: 2,
-        placeholder: 'Digite o nome, telefone ou endereço do cliente'
-    });
-
-    // Inicializar Select2 com busca para produtos
-    $('.select2-products').select2({
-        width: '100%',
-        language: 'pt-BR',
-        placeholder: 'Digite o nome do produto',
-        minimumInputLength: 2,
-        ajax: {
-            url: '/api/products/list.php',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return {
-                    search: params.term
-                };
-            },
-            processResults: function(data) {
-                return {
-                    results: data.map(function(product) {
-                        return {
-                            id: product.id,
-                            text: `${product.name} - R$ ${product.price}`,
-                            price: product.price
-                        };
-                    })
-                };
-            },
-            cache: true
-        }
+        theme: 'bootstrap-5'
     });
 
     // Carregar clientes no select
-    $.ajax({
-        url: '/api/clients/list.php',
-        method: 'GET',
-        success: function(response) {
-            const select = $('select[name="customer_id"]');
-            select.empty().append('<option value="">Selecione um cliente</option>');
-            response.forEach(function(client) {
-                select.append(`<option value="${client.id}">${client.name}</option>`);
+    $.get('/api/clients/list.php', function(response) {
+        if (response.success) {
+            let options = '<option value="">Selecione um cliente</option>';
+            response.data.forEach(function(client) {
+                options += `<option value="${client.id}">${client.name}</option>`;
             });
+            $('select[name="customer_id"]').html(options);
+            $('#filterCustomer').html(options);
         }
     });
 
     // Carregar produtos no select
-    $.ajax({
-        url: '/api/products/list.php',
-        method: 'GET',
-        success: function(response) {
-            const select = $('.select2-products');
-            select.empty().append('<option value="">Selecione um produto</option>');
-            response.forEach(function(product) {
-                select.append(`<option value="${product.id}" data-price="${product.price}">${product.name} - R$ ${product.price}</option>`);
-            });
-        }
-    });
+    function loadProducts(select) {
+        $.get('/api/products/list.php', function(response) {
+            if (response.success) {
+                let options = '<option value="">Selecione um produto</option>';
+                response.data.forEach(function(product) {
+                    options += `<option value="${product.id}" data-price="${product.price}">${product.name}</option>`;
+                });
+                select.html(options);
+            }
+        });
+    }
 
     // Inicializar DataTable
-    ordersTable = $('#ordersTable').DataTable({
+    const table = $('#ordersTable').DataTable({
+        processing: true,
+        serverSide: true,
         ajax: {
             url: '/api/orders/list.php',
-            dataSrc: 'data'
+            type: 'POST',
+            data: function(d) {
+                return {
+                    ...d,
+                    status: $('#filterStatus').val(),
+                    start_date: $('#filterStartDate').val(),
+                    end_date: $('#filterEndDate').val(),
+                    customer_id: $('#filterCustomer').val()
+                };
+            }
         },
         columns: [
             { data: 'id' },
@@ -105,33 +53,41 @@ $(document).ready(function() {
             { 
                 data: 'created_at',
                 render: function(data) {
-                    return formatDate(data);
+                    return new Date(data).toLocaleString('pt-BR');
                 }
             },
             { 
                 data: 'total_amount',
                 render: function(data) {
-                    return `R$ ${parseFloat(data).toFixed(2)}`;
+                    return formatMoney(data);
                 }
             },
-            {
+            { data: 'payment_method' },
+            { 
                 data: 'status',
                 render: function(data) {
-                    return getStatusBadge(data || 'pending');
+                    const status = {
+                        pending: { label: 'Pendente', class: 'warning' },
+                        processing: { label: 'Em Processamento', class: 'info' },
+                        ready: { label: 'Pronto', class: 'primary' },
+                        delivered: { label: 'Entregue', class: 'success' },
+                        cancelled: { label: 'Cancelado', class: 'danger' }
+                    };
+                    return `<span class="badge bg-${status[data].class}">${status[data].label}</span>`;
                 }
             },
             {
                 data: null,
                 render: function(data) {
                     return `
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-info" onclick="viewOrder(${data.id})">
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-primary view-order" data-id="${data.id}">
                                 <i class="bx bx-show"></i>
                             </button>
-                            <button class="btn btn-sm btn-warning" onclick="editOrder(${data.id})">
+                            <button type="button" class="btn btn-info edit-order" data-id="${data.id}">
                                 <i class="bx bx-edit"></i>
                             </button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteOrder(${data.id})">
+                            <button type="button" class="btn btn-danger delete-order" data-id="${data.id}">
                                 <i class="bx bx-trash"></i>
                             </button>
                         </div>
@@ -145,125 +101,214 @@ $(document).ready(function() {
         }
     });
 
-    // Adicionar Produto
-    $('#addProduct').click(function() {
-        const productRow = $('.product-row').first().clone();
-        productRow.find('select, input').val('');
-        productRow.find('.select2-container').remove();
-        productRow.find('select').select2();
-        $('.products-container').append(productRow);
+    // Atualizar tabela quando filtros mudarem
+    $('#filterForm select, #filterForm input').on('change', function() {
+        table.ajax.reload();
+        updateSummary();
     });
 
-    // Remover Produto
-    $(document).on('click', '.remove-product', function() {
-        if ($('.product-row').length > 1) {
-            $(this).closest('.product-row').remove();
-        }
-    });
-
-    // Atualizar preço ao selecionar produto
-    $(document).on('change', '.select2-products', function() {
-        const option = $(this).find('option:selected');
-        const price = option.data('price');
-        $(this).closest('.product-row').find('input[name="prices[]"]').val(price);
-    });
-
-    // Salvar Venda
-    $('#saveOrder').click(function() {
-        const formData = new FormData($('#addOrderForm')[0]);
-        
-        $.ajax({
-            url: '/api/orders/create.php',
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                if (response.success) {
-                    $('#addOrderModal').modal('hide');
-                    ordersTable.ajax.reload();
-                    showAlert('Venda salva com sucesso!');
-                } else {
-                    showAlert(response.message, 'error');
-                }
-            },
-            error: function() {
-                showAlert('Erro ao salvar venda', 'error');
-            }
-        });
-    });
-});
-
-function viewOrder(id) {
-    $.ajax({
-        url: `/api/orders/view.php?id=${id}`,
-        method: 'GET',
-        success: function(response) {
-            $('#view-id').text(response.id);
-            $('#view-customer').text(response.client_name);
-            $('#view-date').text(formatDate(response.created_at));
-            $('#view-status').html(getStatusBadge(response.status));
-            $('#view-total').text(`R$ ${parseFloat(response.total_amount).toFixed(2)}`);
-            $('#viewOrderModal').modal('show');
-        }
-    });
-}
-
-function editOrder(id) {
-    $.ajax({
-        url: `/api/orders/view.php?id=${id}`,
-        method: 'GET',
-        success: function(response) {
-            $('select[name="customer_id"]').val(response.client_id).trigger('change');
-            $('#editOrderModal').modal('show');
-        }
-    });
-}
-
-function deleteOrder(id) {
-    if (confirm('Tem certeza que deseja excluir esta venda?')) {
-        $.ajax({
-            url: `/api/orders/delete.php?id=${id}`,
-            method: 'DELETE',
-            success: function(response) {
-                if (response.success) {
-                    ordersTable.ajax.reload();
-                    showAlert('Venda excluída com sucesso!');
-                } else {
-                    showAlert(response.message, 'error');
-                }
+    // Atualizar resumo
+    function updateSummary() {
+        $.post('/api/orders/summary.php', {
+            status: $('#filterStatus').val(),
+            start_date: $('#filterStartDate').val(),
+            end_date: $('#filterEndDate').val(),
+            customer_id: $('#filterCustomer').val()
+        }, function(response) {
+            if (response.success) {
+                $('#totalSales').text(response.data.total_sales);
+                $('#completedSales').text(response.data.completed_sales);
+                $('#pendingSales').text(response.data.pending_sales);
+                $('#averageTicket').text(formatMoney(response.data.average_ticket));
             }
         });
     }
-}
 
-function getStatusBadge(status) {
-    const badges = {
-        'pending': '<span class="badge bg-warning">Pendente</span>',
-        'processing': '<span class="badge bg-info">Em Processamento</span>',
-        'delivered': '<span class="badge bg-success">Entregue</span>',
-        'cancelled': '<span class="badge bg-danger">Cancelado</span>'
-    };
-    return badges[status] || badges.pending;
-}
-
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+    // Adicionar linha de produto
+    $('#addProductRow').click(function() {
+        const row = `
+            <div class="product-row">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <select class="form-select product-select" name="products[]" required>
+                            <option value="">Selecione um produto</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="form-control quantity" name="quantities[]" min="1" value="1" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control price" readonly>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" class="form-control subtotal" readonly>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-danger btn-sm remove-product">
+                            <i class="bx bx-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        $('.products-container').append(row);
+        loadProducts($('.products-container .product-select').last());
+        updateTotals();
     });
-}
 
-function showAlert(message, type = 'success') {
-    const alertDiv = $(`<div class="alert alert-${type} alert-dismissible fade show" role="alert">
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>`);
-    
-    $('.container-fluid').prepend(alertDiv);
-    setTimeout(() => alertDiv.alert('close'), 5000);
-}
+    // Remover linha de produto
+    $(document).on('click', '.remove-product', function() {
+        $(this).closest('.product-row').remove();
+        updateTotals();
+    });
+
+    // Atualizar preço quando produto é selecionado
+    $(document).on('change', '.product-select', function() {
+        const row = $(this).closest('.product-row');
+        const price = $(this).find(':selected').data('price') || 0;
+        row.find('.price').val(formatMoney(price));
+        updateTotals();
+    });
+
+    // Atualizar subtotal quando quantidade muda
+    $(document).on('change', '.quantity', function() {
+        updateTotals();
+    });
+
+    // Atualizar totais
+    function updateTotals() {
+        let subtotal = 0;
+        $('.product-row').each(function() {
+            const price = parseFloat($(this).find('.price').val().replace('R$ ', '').replace('.', '').replace(',', '.')) || 0;
+            const quantity = parseInt($(this).find('.quantity').val()) || 0;
+            const rowSubtotal = price * quantity;
+            $(this).find('.subtotal').val(formatMoney(rowSubtotal));
+            subtotal += rowSubtotal;
+        });
+
+        const discount = parseFloat($('input[name="discount"]').val()) || 0;
+        const total = subtotal - discount;
+
+        $('#subtotal').text(formatMoney(subtotal));
+        $('#total').text(formatMoney(total));
+    }
+
+    // Salvar venda
+    $('#saveOrder').click(function() {
+        const form = $('#orderForm');
+        if (!form[0].checkValidity()) {
+            form[0].reportValidity();
+            return;
+        }
+
+        const products = [];
+        $('.product-row').each(function() {
+            products.push({
+                product_id: $(this).find('.product-select').val(),
+                quantity: $(this).find('.quantity').val()
+            });
+        });
+
+        const data = {
+            customer_id: form.find('[name="customer_id"]').val(),
+            payment_method: form.find('[name="payment_method"]').val(),
+            discount: form.find('[name="discount"]').val(),
+            notes: form.find('[name="notes"]').val(),
+            items: products
+        };
+
+        $.ajax({
+            url: '/api/orders/create.php',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Sucesso!',
+                        text: 'Venda criada com sucesso!'
+                    }).then(() => {
+                        $('#addOrderModal').modal('hide');
+                        table.ajax.reload();
+                        updateSummary();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro!',
+                        text: response.message
+                    });
+                }
+            }
+        });
+    });
+
+    // Visualizar venda
+    $(document).on('click', '.view-order', function() {
+        const id = $(this).data('id');
+        $.get(`/api/orders/read.php?id=${id}`, function(response) {
+            if (response.success) {
+                const order = response.data;
+                $('#view-id').text(order.id);
+                $('#view-customer').text(order.client_name);
+                $('#view-date').text(new Date(order.created_at).toLocaleString('pt-BR'));
+                $('#view-payment').text(order.payment_method);
+                $('#view-status').html(`<span class="badge bg-${getStatusColor(order.status)}">${getStatusLabel(order.status)}</span>`);
+                $('#view-subtotal').text(formatMoney(order.subtotal));
+                $('#view-discount').text(formatMoney(order.discount));
+                $('#view-total').text(formatMoney(order.total_amount));
+                $('#view-notes').text(order.notes || 'Nenhuma observação');
+
+                let productsHtml = '';
+                order.items.forEach(function(item) {
+                    productsHtml += `
+                        <tr>
+                            <td>${item.product_name}</td>
+                            <td>${item.quantity}</td>
+                            <td>${formatMoney(item.price)}</td>
+                            <td>${formatMoney(item.price * item.quantity)}</td>
+                        </tr>
+                    `;
+                });
+                $('#view-products tbody').html(productsHtml);
+
+                $('#viewOrderModal').modal('show');
+            }
+        });
+    });
+
+    // Funções auxiliares
+    function formatMoney(value) {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        }).format(value);
+    }
+
+    function getStatusColor(status) {
+        const colors = {
+            pending: 'warning',
+            processing: 'info',
+            ready: 'primary',
+            delivered: 'success',
+            cancelled: 'danger'
+        };
+        return colors[status] || 'secondary';
+    }
+
+    function getStatusLabel(status) {
+        const labels = {
+            pending: 'Pendente',
+            processing: 'Em Processamento',
+            ready: 'Pronto',
+            delivered: 'Entregue',
+            cancelled: 'Cancelado'
+        };
+        return labels[status] || status;
+    }
+
+    // Inicialização
+    $('#addProductRow').click();
+    updateSummary();
+});

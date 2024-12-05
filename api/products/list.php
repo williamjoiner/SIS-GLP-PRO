@@ -2,6 +2,8 @@
 session_start();
 require_once "../../config/database.php";
 
+header('Content-Type: application/json');
+
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
@@ -12,15 +14,24 @@ $database = new Database();
 $db = $database->getConnection();
 
 try {
-    $query = "SELECT * FROM products ORDER BY name";
+    $search = isset($_GET['search']) ? $_GET['search'] : '';
+    
+    $query = "SELECT id, name, price, stock FROM products WHERE 1=1";
+    $params = [];
+    
+    if (!empty($search)) {
+        $query .= " AND (name LIKE :search OR description LIKE :search)";
+        $params[':search'] = "%{$search}%";
+    }
+    
+    $query .= " ORDER BY name LIMIT 10";
+    
     $stmt = $db->prepare($query);
-    $stmt->execute();
+    $stmt->execute($params);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    echo json_encode([
-        'success' => true,
-        'data' => $products
-    ]);
+    
+    echo json_encode($products);
+    
 } catch(PDOException $e) {
     http_response_code(500);
     echo json_encode([
@@ -28,4 +39,3 @@ try {
         'message' => 'Database error: ' . $e->getMessage()
     ]);
 }
-?>
